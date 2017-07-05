@@ -1,8 +1,8 @@
 {
     "opcserver": "opc.tcp://192.168.0.50:4840",
     "cashfreeConfig": {
-        "apiKey": "",
-        "profileID": "",
+        "apiKey": "f6197f4c-8813-4af3-b615-f845f1e3477a",
+        "profileID": "a3aefe40-9a1a-4f9f-8e38-4c9ab6416ef1",
         "apiLocation": "https://icapps-nodejs-cashfree-api-sta.herokuapp.com/"
     },
     "ios": [
