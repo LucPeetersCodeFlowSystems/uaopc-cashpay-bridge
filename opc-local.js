@@ -1,6 +1,6 @@
 "use strict";
 
-var opcua = require("node-opcua");
+var opcua = require("node-opcua"); 
 var async = require("async"); 
 var winston = require('winston');
 
