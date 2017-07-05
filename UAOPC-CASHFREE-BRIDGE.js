@@ -3,7 +3,7 @@
 // DEVELOPMENT: start the OPC monitor: opcua-commander -e opc.tcp://ULTRABOOK-LUC:1234
 // DEVELOPMENT/PROD: start this OPC <-> PC <-> CASHFREE bridge: node .\opcCashFreeBridge.js
 
-const request = require('request-promise');
+const request = require('request-promise'); 
 const open = require('opn');
 const bodyParser = require('body-parser');
 const opc = require("./opc");
