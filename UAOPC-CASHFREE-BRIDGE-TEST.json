@@ -1,0 +1,23 @@
+{
+    "opcserver": "opc.tcp://ULTRABOOK-LUC:1234",
+    "cashfreeConfig": {
+        "apiKey": "f6197f4c-8813-4af3-b615-f845f1e3477a",
+        "profileID": "a3aefe40-9a1a-4f9f-8e38-4c9ab6416ef1",
+        "apiLocation": "https://icapps-nodejs-cashfree-api-sta.herokuapp.com/"
+    },
+    "ios": [
+        {
+            "paymentBusy": false,
+            "Startbit": "ns=1;s=startBit",
+            "paymentURL": "ns=1;s=paymentURL",
+            "transactionSigned": "ns=1;s=transactionSigned",
+            "transactionID": "ns=1;s=transactionID",
+            "transactionAmount": "ns=1;s=transactionAmount",
+            "transactionDescription": "ns=1;s=transactionDescription",
+            "cashfreeConfig_apiKey": "ns=1;s=cashfreeConfig_apiKey",
+            "cashfreeConfig_profileID": "ns=1;s=cashfreeConfig_profileID",
+            "cashfreeConfig_apiLocation": "ns=1;s=cashfreeConfig_apiLocation",
+            "hardbeat_ping": "ns=1;s=hardbeat_ping"
+        }
+    ]
+}

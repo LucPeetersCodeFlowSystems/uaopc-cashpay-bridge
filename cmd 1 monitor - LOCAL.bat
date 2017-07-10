@@ -1,0 +1,1 @@
+opcua-commander -e opc.tcp://ULTRABOOK-LUC:1234

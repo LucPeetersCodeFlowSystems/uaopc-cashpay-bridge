@@ -5,13 +5,14 @@ var async = require("async");
 
 var client = new opcua.OPCUAClient();
 //var endpointUrl = "opc.tcp://" + require("os").hostname() + ":1234";
-var endpointUrl = "opc.tcp://192.168.0.50:4840";
-var config = require("../cashfreetest/UAOPC-CASHFREE-BRIDGE.json")
+//var endpointUrl = "opc.tcp://192.168.0.50:4840";
+var config = require("./UAOPC-CASHFREE-BRIDGE-TEST.json");
+const opc_endpoint = config.opcserver;
 
 var the_session, the_subscription;
 
 // step 1 : connect to
-client.connect(endpointUrl, function (err) {
+client.connect(opc_endpoint, function (err) {
     if (err) {
         return;
     }
@@ -26,10 +27,10 @@ client.connect(endpointUrl, function (err) {
                 nodeId: "ns=1;s=transactionAmount",
                 attributeId: opcua.AttributeIds.Value,
                 value: { /* dataValue*/
-                    // serverTimestamp: new Date(),
-                    // serverPicoseconds: 20,
-                    // sourceTimestamp: new Date(),
-                    // sourcePicoseconds: 30,
+                    serverTimestamp: new Date(),
+                    serverPicoseconds: 20,
+                    sourceTimestamp: new Date(),
+                    sourcePicoseconds: 30,
                     value: { /* Variant */
                         dataType: opcua.DataType.Double,
                         value: process.argv[3]
@@ -40,10 +41,10 @@ client.connect(endpointUrl, function (err) {
                 nodeId: "ns=1;s=transactionDescription",
                 attributeId: opcua.AttributeIds.Value,
                 value: { /* dataValue*/
-                    // serverTimestamp: new Date(),
-                    // serverPicoseconds: 20,
-                    // sourceTimestamp: new Date(),
-                    // sourcePicoseconds: 30,
+                    serverTimestamp: new Date(),
+                    serverPicoseconds: 20,
+                    sourceTimestamp: new Date(),
+                    sourcePicoseconds: 30,
                     value: { /* Variant */
                         dataType: opcua.DataType.String,
                         value: process.argv[4]
@@ -54,13 +55,13 @@ client.connect(endpointUrl, function (err) {
                 nodeId: "ns=1;s=startBit",
                 attributeId: opcua.AttributeIds.Value,
                 value: { /* dataValue*/
-                    // serverTimestamp: new Date(),
-                    // serverPicoseconds: 20,
-                    // sourceTimestamp: new Date(),
-                    // sourcePicoseconds: 30,
+                    serverTimestamp: new Date(),
+                    serverPicoseconds: 20,
+                    sourceTimestamp: new Date(),
+                    sourcePicoseconds: 30,
                     value: { /* Variant */
                         dataType: opcua.DataType.Boolean,
-                        value: true
+                        value: (process.argv[2] == 'true')
                     }
                 }
             },

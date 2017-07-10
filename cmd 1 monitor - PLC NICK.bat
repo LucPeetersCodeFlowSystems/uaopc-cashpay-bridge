@@ -1,1 +1,1 @@
-opcua-commander -e opc.tcp://192.168.0.50:4840
+opcua-commander -e opc.tcp://192.168.1.50:4840

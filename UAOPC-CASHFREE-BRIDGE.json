@@ -12,17 +12,12 @@
             "paymentURL": "ns=3;s=\"Communicatie Cashfree\".\"paymentURL\"",
             "transactionSigned": "ns=3;s=\"Communicatie Cashfree\".\"transactionSigned\"",
             "transactionID": "ns=3;s=\"Communicatie Cashfree\".\"transactionID\"",
-            "tranactionAmount": "ns=3;s=\"Communicatie Cashfree\".\"tranactionAmount\"",
-            "transactionDescription": "ns=3;s=\"Communicatie Cashfree\".\"transactionDescription\""
-        },
-        {
-            "paymentBusy": false,
-            "Startbit": "ns=4;s=\"Communicatie Cashfree\".\"Startbit\"",
-            "paymentURL": "ns=4;s=\"Communicatie Cashfree\".\"paymentURL\"",
-            "transactionSigned": "ns=4;s=\"Communicatie Cashfree\".\"transactionSigned\"",
-            "transactionID": "ns=4;s=\"Communicatie Cashfree\".\"transactionID\"",
-            "tranactionAmount": "ns=4;s=\"Communicatie Cashfree\".\"tranactionAmount\"",
-            "transactionDescription": "ns=4;s=\"Communicatie Cashfree\".\"transactionDescription\""
+            "transactionAmount": "ns=3;s=\"Communicatie Cashfree\".\"transactionAmount\"",
+            "transactionDescription": "ns=3;s=\"Communicatie Cashfree\".\"transactionDescription\"",
+            "cashfreeConfig_apiKey": "ns=3;s=\"Communicatie Cashfree\".\"cashfreeConfig_apiKey\"",
+            "cashfreeConfig_profileID": "ns=3;s=\"Communicatie Cashfree\".\"cashfreeConfig_profileID\"",
+            "cashfreeConfig_apiLocation": "ns=3;s=\"Communicatie Cashfree\".\"cashfreeConfig_apiLocation\"",
+            "hardbeat_ping": "ns=1;s=hardbeat_ping"
         }
     ]
 }
