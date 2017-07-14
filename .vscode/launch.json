@@ -4,12 +4,30 @@
     // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
     "version": "0.2.0",
     "configurations": [
-    {
-        "type": "node",
-        "request": "launch",
-        "name": "Launch Program",
-        "program": "${workspaceRoot}/UAOPC-CASHFREE-BRIDGE.js"
-    },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Launch LOCAL Program",
+            "program": "${workspaceRoot}/UAOPC-CASHFREE-BRIDGE.js",
+            "args": [
+                "--c",
+                "./UAOPC-CASHFREE-BRIDGE-LOCAL.json",
+                "--s",
+                "1"
+            ]
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Launch REMOTE Program",
+            "program": "${workspaceRoot}/UAOPC-CASHFREE-BRIDGE.js",
+            "args": [
+                "--c",
+                "./UAOPC-CASHFREE-BRIDGE.json",
+                "--s",
+                "0"
+            ]
+        },
         {
             "type": "node",
             "request": "launch",

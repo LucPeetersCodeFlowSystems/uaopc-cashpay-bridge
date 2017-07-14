@@ -14,43 +14,52 @@ const winston = require('winston');
 const opcua = require("node-opcua");
 const async = require("async");
 
-//const config = require("./UAOPC-CASHFREE-BRIDGE.json");
-const config = require("./UAOPC-CASHFREE-BRIDGE.json");
-const cashfreeConfig = config.cashfreeConfig;
+const argv = require("yargs")
+  .wrap(132)
 
-winston.info('STARTING UAOPC-CASHFREE-BRIDGE');
-const opc_endpoint = config.opcserver;
+  //.demand("config")
+  .string("config")
+  .describe("config", "the json file")
+
+  .string("simulation")
+  .describe("simulation", "simulation of the startbit")
+
+  .alias("c", "config")
+  .alias("s", "simulation")
+
+  .example("node UAOPC-CASHFREE-BRIDGE ")
+  .example("node UAOPC-CASHFREE-BRIDGE -c UAOPC-CASHFREE-BRIDGE-LOCAL.json")
+  .argv;
+
+const configFile = argv.config || "./UAOPC-CASHFREE-BRIDGE.json";
+winston.info('starting uaopc-cashfree-bridge config:', configFile);
+
+const config = require(configFile);
+const cashfreeConfig = config.cashfreeConfig;
+const instance = 0;
+
+winston.info('starting uaopc-cashfree-bridge simulation:', argv.simulation);
+winston.info('starting uaopc-cashfree-bridge server:', config.opcserver);
 
 const inputTags =
   {
-    price: 0.00,
-    description: "",
+    price: 1.00,
+    description: "LUC'S FINE-TUNING",
   }
 
-let instance = 0;
-
-var my_opc = new opc(opc_endpoint);
+var my_opc = new opc(config.opcserver);
 my_opc.initialize(fnMonitor);
-
-var TestBit = false;
-
-function fnTestBit() {
-  my_opc.writeBoolean(config.ios[instance].Startbit, !TestBit, function () {
-    setTimeout(fnTestBit, 2000);
-  });
-}
 
 function fnMonitor(err) {
   if (err) {
     console.error("monitor", err);
     my_opc.disconnect(function () {
       console.error("all disconnected");
-      my_opc = new opc(opc_endpoint);
+      my_opc = new opc(config.opcserver);
       my_opc.initialize(fnMonitor);
     })
     return;
   }
-  //setTimeout(fnTestBit, 2000);
 
   my_opc.monitor(config.ios[instance].Startbit, function (value) {
     if (value.value.value == true) {
@@ -60,6 +69,11 @@ function fnMonitor(err) {
       }
     }
   });
+  
+  // --- some test code
+  if (argv.simulation == "1") {
+    setTimeout(fnTestBit, 2000);
+  }
 }
 
 function fnStartBitChanged(opc) {
@@ -70,6 +84,11 @@ function fnStartBitChanged(opc) {
   // opc.writeBoolean("ns=1;s=startBit", false);
   async.waterfall(
     [
+      function (callback) {
+        opc.writeBoolean(config.ios[instance].Startbit, false, function () {
+          callback();
+        });
+      },
       function (callback) {
         opc.writeString(config.ios[instance].paymentURL, "", function () {
           callback();
@@ -133,7 +152,7 @@ function fnStartBitChanged(opc) {
       function (callback) {
         opc.readVariableValue(config.ios[instance].transactionAmount, function (value) {
           try {
-            inputTags.price = -1;
+            if (argv.simulation == "") inputTags.price = -1;
             if (value.statusCode === opcua.StatusCodes.Good) {
               inputTags.price = value.value.value;
               console.log("inputTags.price", value.value.value);
@@ -147,7 +166,7 @@ function fnStartBitChanged(opc) {
       function (callback) {
         opc.readVariableValue(config.ios[instance].transactionDescription, function (value) {
           try {
-            inputTags.description = null;
+            if (argv.simulation == "") inputTags.description = null;
             if (value.statusCode === opcua.StatusCodes.Good) {
               inputTags.description = value.value.value;
               console.log("inputTags.description", value.value.value);
@@ -180,7 +199,7 @@ function initializePayment(euro, description, opc) {
     webhookURL: "/webhook"
   };
 
-  winston.info('-> POST api/internetpayments/:', paymentData);
+  winston.info('initializePayment :: -> POST api/internetpayments/:', paymentData);
 
   request({
     url: cashfreeConfig.apiLocation + 'api/internetpayments/',
@@ -190,102 +209,102 @@ function initializePayment(euro, description, opc) {
       "content-type": "application/json",
     },
     body: paymentData
-  },
-    function (error, response, body) {
+  })
+    .then(function (data) {
+      winston.info('initializePayment :: <- POST api/internetpayments/:', data);
+      writePaymentData2OPC(data, opc);
+    })
+    .catch(function (error) {
+      winston.error('initializePayment :: <- POST api/internetpayments/:', error.message);
 
-      if (!error && response.statusCode === 201) {
-
-        winston.info('<- POST api/internetpayments/: [%d] [%s] [%s]', response.statusCode, body.transactionId, body.paymentURL);
-
-        // write URL nd/or tcurrent_transactionID to the OPC
-        var async = require("async");
-
-        async.series([
-          function (callback) {
-            opc.writeString(config.ios[instance].paymentURL, body.paymentURL, function (error, statusCodes) {
-              callback();
-            });
-          },
-          function (callback) {
-            opc.writeString(config.ios[instance].transactionID, body.transactionId, function (error, statusCodes) {
-              callback();
-            });
-          },
-          function (callback) {
-            //open(body.paymentURL);
-            pollPayment(body.transactionId, opc);
-          }]);
-      }
-      else {
-        winston.error('response internetpayments: [%s]', error);
-      }
     });
 }
 
-function verifyPayment(transactionID, euro, description, tunnelUrl) {
+function writePaymentData2OPC(data, opc) {
 
-  const internetpaymentRequestData = {
-    apiKey: cashfreeConfig.apiKey,
-    profileID: cashfreeConfig.profileID
-  };
+  // write URL nd/or tcurrent_transactionID to the OPC
+  var async = require("async");
 
-  winston.info('-> GET api/internetpayments/: [%s]', transactionID);
-
-  return request({
-    url: cashfreeConfig.apiLocation + 'api/internetpayments/' + transactionID,
-    method: "GET",
-    json: true,
-    headers: {
-      "content-type": "application/json",
+  async.series([
+    function (callback) {
+      opc.writeString(config.ios[instance].paymentURL, data.paymentURL, function (error, statusCodes) {
+        callback();
+      });
     },
-    body: internetpaymentRequestData
-  },
-    function (error, response, body) {
-      winston.info('<- GET api/internetpayments/: [%d] [%s]', response.statusCode, transactionID);
+    function (callback) {
+      opc.writeString(config.ios[instance].transactionID, data.transactionId, function (error, statusCodes) {
+        callback();
+      });
+    },
+    function (callback) {
 
-      if (!error) {
-        return body;
+      if (argv.simulation == "1") {
+        open(data.paymentURL);
       }
-      else {
-        winston.error('<- GET api/internetpayments/: [%d] [%s]', response.statusCode, error);
-        return body;
-      }
-    });
+
+      pollUntilPaymentIsSigned(data.transactionId, opc);
+    }]);
+
 }
 
 var timer;
-function pollPayment(transactionID, opc) {
+function pollUntilPaymentIsSigned(transactionID, opc) {
 
-  var lpc = opc;
-  timer = setTimeout(function (apc) {
+  timer = setTimeout(function (opc) {
 
-    var info = verifyPayment(transactionID);
+    winston.info('-> GET api/internetpayments/: [%s]', transactionID);
+
+    var info = request({
+      url: cashfreeConfig.apiLocation + 'api/internetpayments/' + "x" + transactionID,
+      method: "GET",
+      json: true,
+      headers: {
+        "content-type": "application/json",
+      }
+    });
 
     info.then(function (data) {
       // check if the transaction has been signed
       if (data.signed == true) {
         // write to the PLC
-        winston.info('internetpayments SIGNED: [%s]', transactionID);
-        winston.debug('internetpayments SIGNED: [%s]', data);
+        winston.info('internetpayments SIGNED:', data);
 
-        apc.writeBoolean(config.ios[instance].transactionSigned, true, function (err, statusCode) {
-          winston.info(config.ios[instance].transactionSigned, "[TRUE]");
+        opc.writeBoolean(config.ios[instance].transactionSigned, true, function (err, statusCode) {
           config.ios[instance].paymentBusy = false;
         });
 
         return;
       }
       else {
-        winston.info('internetpayments NOTSIGNED: [%s]', transactionID);
+        winston.warn('internetpayments NOT SIGNED:', data);
       }
 
-      pollPayment(transactionID, opc);
+      pollUntilPaymentIsSigned(transactionID, opc);
     });
 
-  }, 2000, lpc);
+    info.catch(function (error) {
+      winston.error('pollUntilPaymentIsSigned :: <- POST api/internetpayments/:'+ transactionID, error.message);
+
+    });
+
+  }, 2000, opc);
 }
 
 
-
-
-
+// ---- some test code
+var testBit = false;
+var testLoop = 0;
+function fnTestBit() {
+  if (config.ios[instance].paymentBusy == true) {
+    setTimeout(fnTestBit, 2000);
+    return;
+  }
+  testLoop++;
+  my_opc.writeDouble(config.ios[instance].transactionAmount, "0.1", function (err, value) {
+    my_opc.writeString(config.ios[instance].transactionDescription, "LUC'S FINE-TUNING TEST " + testLoop, function (err, value) {
+      my_opc.writeBoolean(config.ios[instance].Startbit, !testBit, function (err, value) {
+        setTimeout(fnTestBit, 2000);
+      });
+    });
+  });
+}

@@ -178,7 +178,7 @@ class opc {
       if (err) {
         winston.error("OPC: cannot writeBool:", err);
       } else {
-        winston.info("OPC: writeBool OK", nodesToWrite, statusCodes);
+        winston.info("OPC: writeBool OK", nodeToWrite, value);
       }
 
       if (cb) cb(err, statusCodes);
@@ -203,9 +203,10 @@ class opc {
       if (err) {
         winston.error("OPC: cannot writeString:", nodesToWrite, err);
       } else {
-        winston.info("OPC: writeString OK", nodesToWrite, statusCodes);
+        winston.info("OPC: writeString OK", nodeToWrite, value);
       }
-      cb(err, statusCodes);
+
+      if (cb) cb(err, statusCodes);
     });
   };
 
@@ -227,11 +228,12 @@ class opc {
       if (err) {
         winston.error("OPC: cannot writeDouble:", nodesToWrite, err, statusCode);
       } else {
-        winston.info("OPC: writeDouble OK", nodesToWrite, statusCodes);
+        winston.info("OPC: writeDouble OK", nodeToWrite, value);
       }
+
+      if (cb) cb(err, statusCodes);
     });
 
-    cb(err, statusCodes);
   };
 
   readVariableValue(id, readCallback) {
