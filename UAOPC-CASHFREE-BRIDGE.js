@@ -22,10 +22,14 @@ const argv = require("yargs")
   .describe("config", "the json file")
 
   .string("simulation")
-  .describe("simulation", "simulation of the startbit")
+  .describe("simulation", "simulation of the startbit: 0|1")
+
+  .string("verbose")
+  .describe("verbose", "verbose level: 0|1")
 
   .alias("c", "config")
   .alias("s", "simulation")
+  .alias("v", "verbose")
 
   .example("node UAOPC-CASHFREE-BRIDGE ")
   .example("node UAOPC-CASHFREE-BRIDGE -c UAOPC-CASHFREE-BRIDGE-LOCAL.json")
@@ -64,24 +68,29 @@ function fnMonitor(err) {
   my_opc.monitor(config.ios[instance].Startbit, function (value) {
     if (value.value.value == true) {
       if (config.ios[instance].paymentBusy == false) {
-        config.ios[instance].paymentBusy = true;
         fnStartBitChanged(my_opc);
       }
     }
   });
-  
+
   // --- some test code
   if (argv.simulation == "1") {
     setTimeout(fnTestBit, 2000);
   }
+
+  fnHeartbeat();
 }
 
 function fnStartBitChanged(opc) {
+
 
   //assert(opc!=null, "opc can not be null");
 
   // set the startbit to 0
   // opc.writeBoolean("ns=1;s=startBit", false);
+
+  config.ios[instance].paymentBusy = true;
+
   async.waterfall(
     [
       function (callback) {
@@ -238,9 +247,9 @@ function writePaymentData2OPC(data, opc) {
     },
     function (callback) {
 
-      if (argv.simulation == "1") {
-        open(data.paymentURL);
-      }
+      // if (argv.simulation == "1") {
+      open(data.paymentURL);
+      // }
 
       pollUntilPaymentIsSigned(data.transactionId, opc);
     }]);
@@ -252,10 +261,12 @@ function pollUntilPaymentIsSigned(transactionID, opc) {
 
   timer = setTimeout(function (opc) {
 
-    winston.info('-> GET api/internetpayments/: [%s]', transactionID);
+    if (argv.verbose == "1") {
+      winston.info('-> GET api/internetpayments/:', transactionID);
+    }
 
     var info = request({
-      url: cashfreeConfig.apiLocation + 'api/internetpayments/' + "x" + transactionID,
+      url: cashfreeConfig.apiLocation + 'api/internetpayments/' + transactionID,
       method: "GET",
       json: true,
       headers: {
@@ -265,6 +276,14 @@ function pollUntilPaymentIsSigned(transactionID, opc) {
 
     info.then(function (data) {
       // check if the transaction has been signed
+      if (data.signed == false) {
+        if (argv.verbose == "1") {
+          winston.debug('internetpayments NOT SIGNED:', data);
+        }
+        pollUntilPaymentIsSigned(transactionID, opc);
+        return;
+      }      
+
       if (data.signed == true) {
         // write to the PLC
         winston.info('internetpayments SIGNED:', data);
@@ -272,24 +291,33 @@ function pollUntilPaymentIsSigned(transactionID, opc) {
         opc.writeBoolean(config.ios[instance].transactionSigned, true, function (err, statusCode) {
           config.ios[instance].paymentBusy = false;
         });
-
-        return;
-      }
-      else {
-        winston.warn('internetpayments NOT SIGNED:', data);
       }
 
-      pollUntilPaymentIsSigned(transactionID, opc);
     });
 
     info.catch(function (error) {
-      winston.error('pollUntilPaymentIsSigned :: <- POST api/internetpayments/:'+ transactionID, error.message);
-
+      winston.error('pollUntilPaymentIsSigned :: <- POST api/internetpayments/:' + transactionID, error.message);
+      
+      cancelPoll();
     });
 
   }, 2000, opc);
 }
 
+function cancelPoll() {
+  config.ios[instance].paymentBusy = false;
+
+  winston.error('polling canceled');
+}
+
+var gHeatbeat = true;
+function fnHeartbeat()
+{
+  my_opc.writeBoolean(config.ios[instance].Heartbeat, gHeatbeat, function(err, value){
+    gHeatbeat = !gHeatbeat;
+  });
+  setTimeout(fnHeartbeat, 1000);
+}
 
 // ---- some test code
 var testBit = false;
@@ -299,6 +327,7 @@ function fnTestBit() {
     setTimeout(fnTestBit, 2000);
     return;
   }
+
   testLoop++;
   my_opc.writeDouble(config.ios[instance].transactionAmount, "0.1", function (err, value) {
     my_opc.writeString(config.ios[instance].transactionDescription, "LUC'S FINE-TUNING TEST " + testLoop, function (err, value) {

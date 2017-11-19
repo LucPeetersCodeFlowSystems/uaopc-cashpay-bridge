@@ -17,7 +17,7 @@
             "cashfreeConfig_apiKey": "ns=3;s=\"Communicatie Cashfree\".\"cashfreeConfig_apiKey\"",
             "cashfreeConfig_profileID": "ns=3;s=\"Communicatie Cashfree\".\"cashfreeConfig_profileID\"",
             "cashfreeConfig_apiLocation": "ns=3;s=\"Communicatie Cashfree\".\"cashfreeConfig_apiLocation\"",
-            "hardbeat_ping": "ns=1;s=hardbeat_ping"
+            "Heartbeat": "ns=3;s=\"Communicatie Cashfree\".\"Heartbeat\""
         }
     ]
 }
