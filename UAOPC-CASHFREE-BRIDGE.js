@@ -66,7 +66,9 @@ function fnMonitor(err) {
   }
 
   my_opc.monitor(config.ios[instance].Startbit, function (value) {
+    winston.info('bit changed:', value.value.value);
     if (value.value.value == true) {
+      winston.info('paymentBusy:', config.ios[instance].paymentBusy);
       if (config.ios[instance].paymentBusy == false) {
         fnStartBitChanged(my_opc);
       }
@@ -208,7 +210,7 @@ function initializePayment(euro, description, opc) {
     webhookURL: "/webhook"
   };
 
-  winston.info('initializePayment :: -> POST api/internetpayments/:', paymentData);
+  winston.info('THIS->CASHFREE-API : POST api/internetpayments/:', paymentData);
 
   request({
     url: cashfreeConfig.apiLocation + 'api/internetpayments/',
@@ -220,11 +222,12 @@ function initializePayment(euro, description, opc) {
     body: paymentData
   })
     .then(function (data) {
-      winston.info('initializePayment :: <- POST api/internetpayments/:', data);
+      winston.info('CASHFREE-API->THIS=OK');
+      winston.info('data=', data);
       writePaymentData2OPC(data, opc);
     })
     .catch(function (error) {
-      winston.error('initializePayment :: <- POST api/internetpayments/:', error.message);
+      winston.error('CASHFREE-API->THIS=ERROR', error.message);
 
     });
 }
@@ -247,6 +250,9 @@ function writePaymentData2OPC(data, opc) {
     },
     function (callback) {
 
+      winston.info('THIS->PLC url:', data.paymentURL);
+      winston.info('THIS->PLC transactionId:', data.transactionId);
+      
       // if (argv.simulation == "1") {
       open(data.paymentURL);
       // }
@@ -278,7 +284,7 @@ function pollUntilPaymentIsSigned(transactionID, opc) {
       // check if the transaction has been signed
       if (data.signed == false) {
         if (argv.verbose == "1") {
-          winston.debug('internetpayments NOT SIGNED:', data);
+          winston.warn('internetpayments NOT SIGNED:', data);
         }
         pollUntilPaymentIsSigned(transactionID, opc);
         return;
@@ -329,7 +335,7 @@ function fnTestBit() {
   }
 
   testLoop++;
-  my_opc.writeDouble(config.ios[instance].transactionAmount, "0.1", function (err, value) {
+  my_opc.writeDouble(config.ios[instance].transactionAmount, "1.0", function (err, value) {
     my_opc.writeString(config.ios[instance].transactionDescription, "LUC'S FINE-TUNING TEST " + testLoop, function (err, value) {
       my_opc.writeBoolean(config.ios[instance].Startbit, !testBit, function (err, value) {
         setTimeout(fnTestBit, 2000);

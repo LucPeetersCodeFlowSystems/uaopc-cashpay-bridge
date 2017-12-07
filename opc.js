@@ -78,7 +78,7 @@ class opc {
         return;
       }
 
-      winston.info("OPC: client connected.");
+      winston.debug("OPC: client connected.");
 
       self.createSession(callback);
     });
@@ -93,7 +93,7 @@ class opc {
       }
       self.session = session;
 
-      winston.info("OPC: session created.");
+      winston.debug("OPC: session created.");
 
       session.on("session_closed", function (statusCode) {
         winston.error("session_closed");
@@ -149,7 +149,7 @@ class opc {
       });
 
 
-    winston.info("OPC: monitoring item:", id);
+    winston.debug("OPC: monitoring item:", id);
 
     // subscription.on("item_added",function(monitoredItem){
     //xx monitoredItem.on("initialized",function(){ });
@@ -178,7 +178,7 @@ class opc {
       if (err) {
         winston.error("OPC: cannot writeBool:", err);
       } else {
-        winston.info("OPC: writeBool OK", nodeToWrite, value);
+        winston.debug("OPC: writeBool OK", nodeToWrite, value);
       }
 
       if (cb) cb(err, statusCodes);
@@ -203,7 +203,7 @@ class opc {
       if (err) {
         winston.error("OPC: cannot writeString:", nodesToWrite, err);
       } else {
-        winston.info("OPC: writeString OK", nodeToWrite, value);
+        winston.debug("OPC: writeString OK", nodeToWrite, value);
       }
 
       if (cb) cb(err, statusCodes);
@@ -228,7 +228,7 @@ class opc {
       if (err) {
         winston.error("OPC: cannot writeDouble:", nodesToWrite, err, statusCode);
       } else {
-        winston.info("OPC: writeDouble OK", nodeToWrite, value);
+        winston.debug("OPC: writeDouble OK", nodeToWrite, value);
       }
 
       if (cb) cb(err, statusCodes);

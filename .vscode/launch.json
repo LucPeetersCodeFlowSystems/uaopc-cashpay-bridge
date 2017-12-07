@@ -13,6 +13,8 @@
                 "--c",
                 "./UAOPC-CASHFREE-BRIDGE-LOCAL.json",
                 "--s",
+                "1",
+                "--v",
                 "1"
             ]
         },
@@ -25,7 +27,9 @@
                 "--c",
                 "./UAOPC-CASHFREE-BRIDGE.json",
                 "--s",
-                "0"
+                "0",
+                "--v",
+                "1"
             ]
         },
         {
