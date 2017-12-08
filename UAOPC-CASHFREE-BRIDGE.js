@@ -14,6 +14,8 @@ const winston = require('winston');
 const opcua = require("node-opcua");
 const async = require("async");
 
+//require('winston-mongodb');
+
 const argv = require("yargs")
   .wrap(132)
 
@@ -35,24 +37,43 @@ const argv = require("yargs")
   .example("node UAOPC-CASHFREE-BRIDGE -c UAOPC-CASHFREE-BRIDGE-LOCAL.json")
   .argv;
 
-const configFile = argv.config || "./UAOPC-CASHFREE-BRIDGE.json";
-winston.info('starting uaopc-cashfree-bridge config:', configFile);
 
+const configFile = argv.config || "./UAOPC-CASHFREE-BRIDGE.json";
 const config = require(configFile);
 const cashfreeConfig = config.cashfreeConfig;
 const instance = 0;
+var gDB = null;
 
-winston.info('starting uaopc-cashfree-bridge simulation:', argv.simulation);
-winston.info('starting uaopc-cashfree-bridge server:', config.opcserver);
+var MongoClient = require('mongodb').MongoClient;
+var url = "mongodb://localhost:27017/cashfreedb";
+// https://www.w3schools.com/nodejs/nodejs_mongodb_create_db.asp
+MongoClient.connect(url, function (err, db) {
+  if (err) throw err;
+  console.log("Cashfreedb database connected!");
+
+  gDB = db;
+
+  //winston.add(winston.transports.MongoDB, { db: db });
+
+  start();
+})
+
+var my_opc = null;
+function start() {
+  winston.level = 'error'; //TODO: create argv log level
+  winston.info('starting uaopc-cashfree-bridge config:', configFile);
+  winston.info('starting uaopc-cashfree-bridge simulation:', argv.simulation);
+  winston.info('starting uaopc-cashfree-bridge server:', config.opcserver);
+
+  my_opc = new opc(config.opcserver);
+  my_opc.initialize(fnMonitor);
+}
 
 const inputTags =
   {
     price: 1.00,
     description: "LUC'S FINE-TUNING",
   }
-
-var my_opc = new opc(config.opcserver);
-my_opc.initialize(fnMonitor);
 
 function fnMonitor(err) {
   if (err) {
@@ -65,10 +86,10 @@ function fnMonitor(err) {
     return;
   }
 
+
   my_opc.monitor(config.ios[instance].Startbit, function (value) {
-    winston.info('bit changed:', value.value.value);
+    winston.info("PLC<->THIS::MONITOR value=", config.ios[instance].Startbit, value.value.value);
     if (value.value.value == true) {
-      winston.info('paymentBusy:', config.ios[instance].paymentBusy);
       if (config.ios[instance].paymentBusy == false) {
         fnStartBitChanged(my_opc);
       }
@@ -117,45 +138,33 @@ function fnStartBitChanged(opc) {
       },
       function (callback) {
         opc.readVariableValue(config.ios[instance].cashfreeConfig_apiKey, function (value) {
-          try {
-            if (value.statusCode === opcua.StatusCodes.Good) {
-              cashfreeConfig.apiKey = value.value.value;
-            }
-            else {
-              console.error(value.statusCode);
-            }
-          } catch (error) {
-            console.error("error apiKey", error);
+          if (value.statusCode === opcua.StatusCodes.Good) {
+            cashfreeConfig.apiKey = value.value.value;
+          }
+          else {
+            console.error(value.statusCode);
           }
           callback();
         });
       },
       function (callback) {
         opc.readVariableValue(config.ios[instance].cashfreeConfig_profileID, function (value) {
-          try {
-            if (value.statusCode === opcua.StatusCodes.Good) {
-              cashfreeConfig.profileID = value.value.value;
-            }
-            else {
-              console.error(value.statusCode);
-            }
-          } catch (error) {
-            console.error("error profileID", error);
+          if (value.statusCode === opcua.StatusCodes.Good) {
+            cashfreeConfig.profileID = value.value.value;
+          }
+          else {
+            console.error(value.statusCode);
           }
           callback();
         });
       },
       function (callback) {
         opc.readVariableValue(config.ios[instance].cashfreeConfig_apiLocation, function (value) {
-          try {
-            if (value.statusCode === opcua.StatusCodes.Good) {
-              cashfreeConfig.apiLocation = value.value.value;
-            }
-            else {
-              console.error(value.statusCode);
-            }
-          } catch (error) {
-            console.error("error apiLocation", error);
+          if (value.statusCode === opcua.StatusCodes.Good) {
+            cashfreeConfig.apiLocation = value.value.value;
+          }
+          else {
+            console.error(value.statusCode);
           }
           callback();
         });
@@ -166,7 +175,7 @@ function fnStartBitChanged(opc) {
             if (argv.simulation == "") inputTags.price = -1;
             if (value.statusCode === opcua.StatusCodes.Good) {
               inputTags.price = value.value.value;
-              console.log("inputTags.price", value.value.value);
+              winston.info("THIS<->PLC::READ value=", config.ios[instance].transactionAmount, value.value.value);
             }
           } catch (error) {
             console.log("error", error);
@@ -180,7 +189,7 @@ function fnStartBitChanged(opc) {
             if (argv.simulation == "") inputTags.description = null;
             if (value.statusCode === opcua.StatusCodes.Good) {
               inputTags.description = value.value.value;
-              console.log("inputTags.description", value.value.value);
+              winston.info("THIS<->PLC::READ value=", config.ios[instance].transactionDescription, value.value.value);
             }
           } catch (error) {
             console.log("error", error);
@@ -210,7 +219,7 @@ function initializePayment(euro, description, opc) {
     webhookURL: "/webhook"
   };
 
-  winston.info('THIS->CASHFREE-API : POST api/internetpayments/:', paymentData);
+  winston.info('THIS<->CASHFREE-API::REQUEST ( POST api/internetpayments/ )', JSON.stringify(paymentData));
 
   request({
     url: cashfreeConfig.apiLocation + 'api/internetpayments/',
@@ -222,13 +231,14 @@ function initializePayment(euro, description, opc) {
     body: paymentData
   })
     .then(function (data) {
-      winston.info('CASHFREE-API->THIS=OK');
-      winston.info('data=', data);
+      winston.info('THIS<->CASHFREE-API::RESPONSE', JSON.stringify(data));
+
+      gDB.collection("transaction").insert({ transactionId: data.transactionId, request: paymentData, response: data, signed: data.signed, dt_create: Date() });
+
       writePaymentData2OPC(data, opc);
     })
     .catch(function (error) {
-      winston.error('CASHFREE-API->THIS=ERROR', error.message);
-
+      winston.error('THIS<->CASHFREE-API::RESPONSE-ERROR', error.message);
     });
 }
 
@@ -250,9 +260,9 @@ function writePaymentData2OPC(data, opc) {
     },
     function (callback) {
 
-      winston.info('THIS->PLC url:', data.paymentURL);
-      winston.info('THIS->PLC transactionId:', data.transactionId);
-      
+      winston.info('THIS->PLC::WRITE value=', config.ios[instance].paymentURL, data.paymentURL);
+      winston.info('THIS->PLC::WRITE value=', config.ios[instance].transactionID, data.transactionId);
+
       // if (argv.simulation == "1") {
       open(data.paymentURL);
       // }
@@ -267,9 +277,7 @@ function pollUntilPaymentIsSigned(transactionID, opc) {
 
   timer = setTimeout(function (opc) {
 
-    if (argv.verbose == "1") {
-      winston.info('-> GET api/internetpayments/:', transactionID);
-    }
+    winston.info('THIS->CASHFREE::REQUEST GET api/internetpayments/:', transactionID);
 
     var info = request({
       url: cashfreeConfig.apiLocation + 'api/internetpayments/' + transactionID,
@@ -281,29 +289,42 @@ function pollUntilPaymentIsSigned(transactionID, opc) {
     });
 
     info.then(function (data) {
-      // check if the transaction has been signed
-      if (data.signed == false) {
-        if (argv.verbose == "1") {
-          winston.warn('internetpayments NOT SIGNED:', data);
-        }
-        pollUntilPaymentIsSigned(transactionID, opc);
-        return;
-      }      
+      winston.info('THIS->CASHFREE::RESPONSE data=', JSON.stringify(data));
+
+      var myquery = { transactionId: data.transactionId };
+      gDB.collection("transaction").updateOne(myquery, { $set: { poll_response: data, signed: data.signed, dt_update: Date() } });
 
       if (data.signed == true) {
-        // write to the PLC
+
         winston.info('internetpayments SIGNED:', data);
 
         opc.writeBoolean(config.ios[instance].transactionSigned, true, function (err, statusCode) {
           config.ios[instance].paymentBusy = false;
         });
-      }
 
+      }
+      else {
+
+        opc.readVariableValue(config.ios[instance].StopPoll, function (value) {
+          if (value.statusCode === opcua.StatusCodes.Good) {
+            if (value.value.value == true) {
+
+              gDB.collection("transaction").updateOne(myquery, { $set: { cancelled: true } });
+              cancelPoll();
+              return;
+            }
+          }
+
+          pollUntilPaymentIsSigned(transactionID, opc);
+        });
+
+        return;
+      }
     });
 
     info.catch(function (error) {
       winston.error('pollUntilPaymentIsSigned :: <- POST api/internetpayments/:' + transactionID, error.message);
-      
+
       cancelPoll();
     });
 
@@ -312,17 +333,15 @@ function pollUntilPaymentIsSigned(transactionID, opc) {
 
 function cancelPoll() {
   config.ios[instance].paymentBusy = false;
-
   winston.error('polling canceled');
 }
 
 var gHeatbeat = true;
-function fnHeartbeat()
-{
-  my_opc.writeBoolean(config.ios[instance].Heartbeat, gHeatbeat, function(err, value){
+function fnHeartbeat() {
+  my_opc.writeBoolean(config.ios[instance].Heartbeat, gHeatbeat, function (err, value) {
     gHeatbeat = !gHeatbeat;
+    setTimeout(fnHeartbeat, 1000);
   });
-  setTimeout(fnHeartbeat, 1000);
 }
 
 // ---- some test code

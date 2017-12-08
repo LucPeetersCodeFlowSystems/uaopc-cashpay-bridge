@@ -74,11 +74,11 @@ class opc {
 
     self.client.connect(self.endpointUrl, function (err) {
       if (err) {
-        winston.error("OPC: cannot connect to endpoint :", err);
+        winston.error("THIS->OPC:cannot connect to endpoint :", err);
         return;
       }
 
-      winston.debug("OPC: client connected.");
+      winston.debug("THIS->OPC:client connected.");
 
       self.createSession(callback);
     });
@@ -88,12 +88,12 @@ class opc {
     let self = this;
     self.client.createSession(function (err, session) {
       if (err) {
-        winston.error("OPC: cannot createSession :", err);
+        winston.error("THIS->OPC:cannot createSession :", err);
         return;
       }
       self.session = session;
 
-      winston.debug("OPC: session created.");
+      winston.debug("THIS->OPC:session created.");
 
       session.on("session_closed", function (statusCode) {
         winston.error("session_closed");
@@ -149,7 +149,7 @@ class opc {
       });
 
 
-    winston.debug("OPC: monitoring item:", id);
+    winston.debug("THIS->OPC:monitoring item:", id);
 
     // subscription.on("item_added",function(monitoredItem){
     //xx monitoredItem.on("initialized",function(){ });
@@ -176,9 +176,9 @@ class opc {
 
     my.session.write(nodesToWrite, function (err, statusCodes) {
       if (err) {
-        winston.error("OPC: cannot writeBool:", err);
+        winston.error("THIS->OPC:cannot writeBool:", JSON.stringify(nodesToWrite), err);
       } else {
-        winston.debug("OPC: writeBool OK", nodeToWrite, value);
+        winston.debug("THIS->OPC:writeBool OK", JSON.stringify(nodesToWrite), value);
       }
 
       if (cb) cb(err, statusCodes);
@@ -201,9 +201,9 @@ class opc {
 
     my.session.write(nodesToWrite, function (err, statusCodes) {
       if (err) {
-        winston.error("OPC: cannot writeString:", nodesToWrite, err);
+        winston.error("THIS->OPC:cannot writeString:", JSON.stringify(nodesToWrite), err);
       } else {
-        winston.debug("OPC: writeString OK", nodeToWrite, value);
+        winston.verbose("THIS->OPC:writeString OK", JSON.stringify(nodesToWrite), value);
       }
 
       if (cb) cb(err, statusCodes);
@@ -226,9 +226,9 @@ class opc {
 
     my.session.write(nodesToWrite, function (err, statusCodes) {
       if (err) {
-        winston.error("OPC: cannot writeDouble:", nodesToWrite, err, statusCode);
+        winston.error("THIS->OPC:cannot writeDouble:", JSON.stringify(nodesToWrite), err, statusCode);
       } else {
-        winston.debug("OPC: writeDouble OK", nodeToWrite, value);
+        winston.debug("THIS->OPC:writeDouble OK", JSON.stringify(nodesToWrite), value);
       }
 
       if (cb) cb(err, statusCodes);
