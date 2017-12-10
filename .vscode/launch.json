@@ -12,10 +12,8 @@
             "args": [
                 "--c",
                 "./UAOPC-CASHFREE-BRIDGE-LOCAL.json",
-                "--s",
-                "1",
-                "--v",
-                "1"
+                "--d",
+                "true"
             ]
         },
         {

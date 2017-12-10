@@ -68,19 +68,21 @@ class opc {
     });
   }
 
-  initialize(callback) {
-    var self = this;
-    self.startmonitor_callback = callback;
+  async initialize() {
+    return new Promise((resolve, reject) => {
 
-    self.client.connect(self.endpointUrl, function (err) {
-      if (err) {
-        winston.error("THIS->OPC:cannot connect to endpoint :", err);
-        return;
-      }
+      var self = this;
 
-      winston.debug("THIS->OPC:client connected.");
+      self.client.connect(self.endpointUrl, function (err) {
+        if (err) {
+          winston.error("THIS->OPC:cannot connect to endpoint :", err);
+          return;
+        }
 
-      self.createSession(callback);
+        winston.debug("THIS->OPC:client connected.");
+
+        self.createSession(() => { resolve() });
+      });
     });
   }
 
@@ -185,66 +187,71 @@ class opc {
     });
   };
 
-  writeString(nodeToWrite, value, cb) {
-    var my = this;
-    var nodesToWrite = [
-      {
-        nodeId: nodeToWrite,
-        attributeId: opcua.AttributeIds.Value,
-        value: { /* dataValue*/
-          value: { /* Variant */
-            dataType: opcua.DataType.String,
-            value: value
+  writeAsync(nodeToWrite, value) {
+    return new Promise((resolve, reject) => {
+
+      winston.debug("OPC::writeAsync", JSON.stringify(nodeToWrite), value);
+
+      var my = this;
+
+      var dataType = null;
+      if (typeof value == "boolean") dataType = opcua.DataType.Boolean;
+      else if (typeof value == "string") dataType = opcua.DataType.String;
+      else if (typeof value == "number") dataType = opcua.DataType.Double;
+
+      if (dataType == null) { resole(false); return; }
+
+      var nodesToWrite = [
+        {
+          nodeId: nodeToWrite,
+          attributeId: opcua.AttributeIds.Value,
+          value: { /* dataValue*/
+            value: { /* Variant */
+              dataType: dataType,
+              value: value
+            }
+          }
+        }];
+
+      my.session.write(nodesToWrite, function (err, statusCodes) {
+        if (!err) {
+          if (statusCodes[0] === opcua.StatusCodes.Good) {
+            winston.debug("OPC::writeAsync", nodeToWrite, "OK");
+            resolve(true);
+            return;
           }
         }
-      }];
 
-    my.session.write(nodesToWrite, function (err, statusCodes) {
-      if (err) {
-        winston.error("THIS->OPC:cannot writeString:", JSON.stringify(nodesToWrite), err);
-      } else {
-        winston.verbose("THIS->OPC:writeString OK", JSON.stringify(nodesToWrite), value);
-      }
-
-      if (cb) cb(err, statusCodes);
+        winston.warn("OPC::writeAsync", nodeToWrite, JSON.stringify(statusCodes), (err ? JSON.stringify(err) : null), "NOK");
+        resolve(null);
+        return;
+      });
     });
   };
 
-  writeDouble(nodeToWrite, value, cb) {
-    var my = this;
-    var nodesToWrite = [
-      {
-        nodeId: nodeToWrite,
-        attributeId: opcua.AttributeIds.Value,
-        value: { /* dataValue*/
-          value: { /* Variant */
-            dataType: opcua.DataType.Double,
-            value: value
+  readAsync(id, readCallback) {
+    return new Promise((resolve, reject) => {
+      var my = this;
+
+      winston.debug("OPC::readAsync", id);
+      
+      my.session.readVariableValue(id, function (err, dataValue) {
+        if (!err) {
+          if (dataValue.statusCode === opcua.StatusCodes.Good) {
+            winston.debug("THIS->OPC:readAsync", id, dataValue.value.value, "OK");
+
+            resolve(dataValue.value.value);
+            return;
           }
         }
-      }];
 
-    my.session.write(nodesToWrite, function (err, statusCodes) {
-      if (err) {
-        winston.error("THIS->OPC:cannot writeDouble:", JSON.stringify(nodesToWrite), err, statusCode);
-      } else {
-        winston.debug("THIS->OPC:writeDouble OK", JSON.stringify(nodesToWrite), value);
-      }
-
-      if (cb) cb(err, statusCodes);
+        winston.warn("OPC::readAsync", id, JSON.stringify(dataValue), (err ? JSON.stringify(err) : null), "NOK");
+        
+        resolve(null);
+        return;
+      });
     });
 
-  };
-
-  readVariableValue(id, readCallback) {
-    this.readCallback = readCallback;
-    var my = this;
-
-    my.session.readVariableValue(id, function (err, dataValue) {
-      if (!err) {
-        my.readCallback(dataValue);
-      }
-    });
   }
 };
 

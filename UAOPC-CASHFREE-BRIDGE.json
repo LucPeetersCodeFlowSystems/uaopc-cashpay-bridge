@@ -9,6 +9,7 @@
         {
             "paymentBusy": false,
             "Startbit": "ns=3;s=\"Communicatie Cashfree\".\"Startbit\"",
+            "Cancelbit": "ns=3;s=\"Communicatie Cashfree\".\"Cancelbit\"",
             "paymentURL": "ns=3;s=\"Communicatie Cashfree\".\"paymentURL\"",
             "transactionSigned": "ns=3;s=\"Communicatie Cashfree\".\"transactionSigned\"",
             "transactionID": "ns=3;s=\"Communicatie Cashfree\".\"transactionID\"",
