@@ -12,7 +12,8 @@ const bodyParser = require('body-parser');
 const opc = require("./opc");
 const winston = require('winston');
 const opcua = require("node-opcua");
-const async = require("async");
+const normalize = require('normalize-path');
+var fs = require('fs');
 
 //require('winston-mongodb');
 
@@ -38,7 +39,14 @@ if (argv.debug === "true") {
   winston.level = 'debug';
 }
 
-const global_config = require(argv.config || "./UAOPC-CASHFREE-BRIDGE.json");
+const configPath = argv.config || "./UAOPC-CASHFREE-BRIDGE.json";
+const nconfigPath = normalize(configPath)
+if (!fs.existsSync(nconfigPath)) {
+    console.error("Config file does not exists", argv.config)
+}
+
+const global_config = require(nconfigPath);
+
 
 winston.info('starting uaopc-cashfree-bridge server:', global_config.opcserver);
 
