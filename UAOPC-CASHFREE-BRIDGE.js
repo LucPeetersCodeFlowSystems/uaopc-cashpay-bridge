@@ -5,8 +5,8 @@
 
 // http://node-opcua.github.io/api_doc/classes/OPCUAClient.html
 
-// const opcua = require("node-opcua");
-const opcua = require("../node-opcua-0.3.0/index");
+const opcua = require("node-opcua");
+//const opcua = require("../node-opcua-0.3.0/index");
 
 
 const assert = require('assert');
