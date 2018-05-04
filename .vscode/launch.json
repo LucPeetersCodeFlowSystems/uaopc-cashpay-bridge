@@ -7,7 +7,7 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Launch LOCAL Program",
+            "name": "Launch LOCAL-OPC-LOCAL Program",
             "program": "${workspaceRoot}/UAOPC-CASHFREE-BRIDGE.js",
             "args": [
                 "--c",
@@ -19,7 +19,7 @@
         {
             "type": "node",
             "request": "launch",
-            "name": "Launch REMOTE Program",
+            "name": "Launch REMOTE-OPC-PROD Program",
             "program": "${workspaceRoot}/UAOPC-CASHFREE-BRIDGE.js",
             "args": [
                 "--c",

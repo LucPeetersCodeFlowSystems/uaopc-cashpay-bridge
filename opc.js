@@ -1,6 +1,8 @@
 "use strict";
 
-var opcua = require("node-opcua");
+// var opcua = require("node-opcua");
+const opcua = require("../node-opcua-0.3.0/index");
+
 var winston = require('winston');
 const chalk = require("chalk");
 
@@ -29,41 +31,47 @@ class opc {
     const options = {
       defaultSecureTokenLifetime: 400000,
       connectionStrategy: {
-        maxRetry: 100,
+        maxRetry: 10000,
         initialDelay: 1000,
-        maxDelay: 2000
+        maxDelay: 5000
       },
-      keepSessionAlive: true
+      keepSessionAlive: true,
+      clientName: "Codeflow Systems"
     };
 
     this.client = new opcua.OPCUAClient(options);
 
     this.client.on("backoff", function (number, delay) {
       data.backoffCount += 1;
-      console.log(chalk.yellow(`backoff  attempt #${number} retrying in ${delay / 1000.0} seconds (${this.endpointUrl})`));
+      winston.warn(chalk.yellow(`backoff  attempt #${number} retrying in ${delay / 1000.0} seconds (${this.endpointUrl})`));
     });
 
     this.client.on("start_reconnection", function () {
-      console.log(chalk.red(" !!!!!!!!!!!!!!!!!!!!!!!!  Starting reconnection !!!!!!!!!!!!!!!!!!! " + this.endpointUrl));
+      winston.warn(chalk.yellow(" !!!!!!!!!!!!!!!!!!!!!!!!  Starting reconnection !!!!!!!!!!!!!!!!!!! " + this.endpointUrl));
     });
 
     this.client.on("connection_reestablished", function () {
-      console.log(chalk.red(" !!!!!!!!!!!!!!!!!!!!!!!!  CONNECTION RE-ESTABLISHED !!!!!!!!!!!!!!!!!!! " + this.endpointUrl));
+      winston.warn(chalk.yellow(" !!!!!!!!!!!!!!!!!!!!!!!!  CONNECTION RE-ESTABLISHED !!!!!!!!!!!!!!!!!!! " + this.endpointUrl));
       data.reconnectionCount++;
     });
 
     this.client.on("after_reconnection", function () {
-      console.log(chalk.red(" !!!!!!!!!!!!!!!!!!!!!!!!  After reconnection !!!!!!!!!!!!!!!!!!! " + this.endpointUrl));
+      winston.warn(" !!!!!!!!!!!!!!!!!!!!!!!!  After reconnection !!!!!!!!!!!!!!!!!!! " + this.endpointUrl);
+   
+      // this.createSession(() => {
+      //   winston.info("new session created");
+      // });
+
     });
 
     // monitoring des lifetimes
     this.client.on("lifetime_75", function (token) {
-      console.log(chalk.red("received lifetime_75 on " + this.endpointUrl));
+      winston.warn(chalk.red("received lifetime_75 on " + this.endpointUrl));
     });
 
     this.client.on("security_token_renewed", function () {
       data.tokenRenewalCount += 1;
-      console.log(chalk.green(" security_token_renewed on " + this.endpointUrl));
+      winston.warn(chalk.green(" security_token_renewed on " + this.endpointUrl));
     });
   }
 
@@ -75,10 +83,10 @@ class opc {
       self.client.connect(self.endpointUrl, function (err) {
         if (err) {
           winston.error("THIS->OPC:cannot connect to endpoint :", err);
-          return;
+          process.exit(1);
         }
 
-        winston.debug("THIS->OPC:client connected.");
+        winston.info("connected to opc-server:", self.endpointUrl);
 
         self.createSession(() => { resolve() });
       });
@@ -97,10 +105,18 @@ class opc {
       winston.debug("THIS->OPC:session created.");
 
       session.on("session_closed", function (statusCode) {
-        winston.error("session_closed");
-        self.session = null;
+        winston.warn("session_closed statusCode:", statusCode);
+        //self.session = null;
 
-        callback(statusCode);
+        // setTimeout(()=>{
+        //   self.createSession(()=>{
+        //     winston.info("new session created");
+        //   })
+        // }, 100);
+
+        process.exit(1);
+
+        // TODO : RECONNECT 
       });
 
       callback();
@@ -161,31 +177,6 @@ class opc {
     });
   };
 
-  writeBoolean(nodeToWrite, value, cb) {
-    var my = this;
-    var nodesToWrite = [
-      {
-        nodeId: nodeToWrite,
-        attributeId: opcua.AttributeIds.Value,
-        value: { /* dataValue*/
-          value: { /* Variant */
-            dataType: opcua.DataType.Boolean,
-            value: value
-          }
-        }
-      }];
-
-    my.session.write(nodesToWrite, function (err, statusCodes) {
-      if (err) {
-        winston.error("THIS->OPC:cannot writeBool:", JSON.stringify(nodesToWrite), err);
-      } else {
-        winston.debug("THIS->OPC:writeBool OK", JSON.stringify(nodesToWrite), value);
-      }
-
-      if (cb) cb(err, statusCodes);
-    });
-  };
-
   writeAsync(nodeToWrite, value) {
     return new Promise((resolve, reject) => {
 
@@ -212,6 +203,12 @@ class opc {
           }
         }];
 
+      if (my.session == null) {
+        winston.warn("OPC::writeAsync", nodesToWrite.nodeId, "NO SESSION");
+        resolve(false);
+        return;
+      }
+
       my.session.write(nodesToWrite, function (err, statusCodes) {
         if (!err) {
           if (statusCodes[0] === opcua.StatusCodes.Good) {
@@ -222,7 +219,8 @@ class opc {
         }
 
         winston.warn("OPC::writeAsync", nodeToWrite, JSON.stringify(statusCodes), (err ? JSON.stringify(err) : null), "NOK");
-        resolve(null);
+
+        resolve(false);
         return;
       });
     });
@@ -233,7 +231,14 @@ class opc {
       var my = this;
 
       winston.debug("OPC::readAsync", id);
-      
+
+
+      if (my.session == null) {
+        winston.warn("OPC::readAsync", id, JSON.stringify(dataValue), "NO SESSION");
+        resolve(false);
+        return;
+      }
+
       my.session.readVariableValue(id, function (err, dataValue) {
         if (!err) {
           if (dataValue.statusCode === opcua.StatusCodes.Good) {
@@ -245,7 +250,7 @@ class opc {
         }
 
         winston.warn("OPC::readAsync", id, JSON.stringify(dataValue), (err ? JSON.stringify(err) : null), "NOK");
-        
+
         resolve(null);
         return;
       });

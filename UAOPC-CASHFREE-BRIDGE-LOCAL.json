@@ -1,6 +1,7 @@
 {
     "opcserver": "opc.tcp://ULTRABOOK-LUC:1234",
-    "openbrowser": true,
+    "openbrowser": false,
+    "qrcode": "LOC-2d97d935-3e7a-4b34-949f-6dc287c0591e",
     "cashfree": {
         "apiKey": "e310d439-a583-4444-939c-5f5e4a1a458b",
         "profileID": "32ef8dda-3c91-4a66-a631-cbb5d4d976b7",
@@ -25,6 +26,18 @@
             "paymentURL": "ns=1;s=paymentURL", 
             "transactionID": "ns=1;s=transactionID", 
             "transactionSigned": "ns=1;s=transactionSigned" 
+        },
+        {
+            "cancelBit": "ns=2;s=cancelBit", 
+            "transactionAmount": "ns=2;s=transactionAmount", 
+            "transactionDescription": "ns=2;s=transactionDescription", 
+            "cashfreeConfig_apiKey": "ns=2;s=cashfreeConfig_apiKey", 
+            "cashfreeConfig_profileID": "ns=2;s=cashfreeConfig_profileID", 
+            "cashfreeConfig_apiLocation": "ns=2;s=cashfreeConfig_apiLocation", 
+            "transactionpoll": "ns=2;s=transactionPollCounter", 
+            "paymentURL": "ns=2;s=paymentURL", 
+            "transactionID": "ns=2;s=transactionID", 
+            "transactionSigned": "ns=2;s=transactionSigned" 
         }
     ]
 }

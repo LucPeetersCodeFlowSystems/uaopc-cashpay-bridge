@@ -5,17 +5,32 @@
 
 // http://node-opcua.github.io/api_doc/classes/OPCUAClient.html
 
+// const opcua = require("node-opcua");
+const opcua = require("../node-opcua-0.3.0/index");
+
+
 const assert = require('assert');
 const request = require('request-promise');
 const open = require('opn');
 const bodyParser = require('body-parser');
 const opc = require("./opc");
 const winston = require('winston');
-const opcua = require("node-opcua");
 const normalize = require('normalize-path');
 var fs = require('fs');
 
+winston.configure({
+  transports: [
+    new winston.transports.File({ filename: 'cashfree-bridge.log' }),
+    new winston.transports.Console()
+  ]
+});
+
 //require('winston-mongodb');
+
+process.on('unhandledRejection', (reason, p) => {
+  winston.error('Unhandled Rejection at: Promise', p, 'reason:', reason);
+  // application specific logging, throwing an error, or other logic here
+});
 
 const argv = require("yargs")
   .wrap(132)
@@ -42,13 +57,17 @@ if (argv.debug === "true") {
 const configPath = argv.config || "./UAOPC-CASHFREE-BRIDGE.json";
 const nconfigPath = normalize(configPath)
 if (!fs.existsSync(nconfigPath)) {
-    console.error("Config file does not exists", argv.config)
+  winston.error("Config file does not exists", argv.config)
 }
 
 const global_config = require(nconfigPath);
 
+if (global_config.qrcode !== undefined) {
+  var qrcode = require('qrcode-terminal');
+  qrcode.generate(global_config.qrcode);
+}
 
-winston.info('starting uaopc-cashfree-bridge server:', global_config.opcserver);
+winston.info('starting...');
 
 var gDB = null;
 
@@ -69,15 +88,14 @@ class boot {
       // https://www.w3schools.com/nodejs/nodejs_mongodb_create_db.asp
       MongoClient.connect(url, function (err, db) {
         if (err) {
-          winston.warn("could nto connect to database", url, err.message);
+          winston.warn("could not connect to database", url, err.message);
         }
-        else
-        {
-          winston.info("Cashfreedb database connected!");
+        else {
+          winston.info("connected to mongodb service:", url);
         }
 
         gDB = db;
-
+        gDB = null;
         //winston.add(winston.transports.MongoDB, { db: db });
 
         resolve(db);
@@ -91,13 +109,16 @@ class boot {
 
     //fnHeartbeat();
 
+
+
+
     l_opcconnection.monitor(global_config.sharedio.startbit, function (value) {
       if (value.value.value == true) {
         var rt = new RunningTransaction(l_opcconnection);
         rt.start();
       }
       else {
-        winston.info("Waiting for startbit...");
+        winston.info("Waiting for startbit on", global_config.sharedio.startbit);
       }
     });
 
@@ -130,6 +151,7 @@ class RunningTransaction {
   async start() {
 
     try {
+
       winston.info("RunningTransaction::start");
 
       // write start bit to false
@@ -146,9 +168,13 @@ class RunningTransaction {
       winston.info("RunningTransaction::start instance: ", this.instance);
       winston.debug("RunningTransaction::start config: ", this.instance_config);
 
+      var rtn = await this.opc.writeAsync(this.instance_config.errorCode, "");
+      var rtn = await this.opc.writeAsync(this.instance_config.errorDescription, "");
       var rtn = await this.opc.writeAsync(this.instance_config.paymentURL, "");
       var rtn = await this.opc.writeAsync(this.instance_config.transactionID, "");
       var rtn = await this.opc.writeAsync(this.instance_config.transactionSigned, false);
+      var rtn = await this.opc.writeAsync(this.instance_config.cancelBit, false);
+
 
       this.apiKey = await this.opc.readAsync(this.instance_config.cashfreeConfig_apiKey);
       this.profileID = await this.opc.readAsync(this.instance_config.cashfreeConfig_profileID);
@@ -159,8 +185,24 @@ class RunningTransaction {
 
       var paymentdata = this.paymentData;
 
+      winston.info("RunningTransaction[%d]::requestPayment:", this.instance, paymentdata);
+
       // --- request transaction
       this.response = await this.requestPayment(paymentdata);
+      if (this.response.error) {
+
+        var code = this.response.error.errors[0].code.toString();
+        var description = this.response.error.errors[0].message;
+        var detail = this.response.error.errors[0].detail[0];
+
+        winston.error("RunningTransaction[%d]::requestPayment:", this.instance, code, description, detail);
+
+        var rtn = await this.opc.writeAsync(this.instance_config.errorCode, code);
+        var rtn = await this.opc.writeAsync(this.instance_config.errorDescription, description + ": " + detail);
+        var rtn = await this.opc.writeAsync(this.instance_config.cancelBit, true);
+
+        return;
+      }
 
       this.response.paymentURL += global_config.cashfree.apiSuffix;
 
@@ -178,7 +220,7 @@ class RunningTransaction {
       var rtn = await this.opc.writeAsync(this.instance_config.transactionID, this.response.transactionId);
       var rtn = await this.opc.writeAsync(this.instance_config.paymentURL, this.response.paymentURL);
 
-      winston.info("RunningTransaction::transactionID written...", this.instance_config.transactionID);
+      winston.info("RunningTransaction[%d]::transactionID:", this.instance, this.response.transactionId);
 
       // the url is put on the PLC screen
 
@@ -188,26 +230,46 @@ class RunningTransaction {
       }
 
       var myquery = { transactionId: this.response.transactionId };
+
+
+      // -----------------------------------------------------------------------
       // --- BEGIN LOOP ------ CHECK PAYMENT -----------------------------------
+      // -----------------------------------------------------------------------
+      var paymentChecks = 0;
       do {
         await this.delay(2000);
 
+        paymentChecks++;
+
         // -- check if transaction is signed
         this.responseCheckPaymentStatus = await this.requestCheckPaymentStatus(this.response.transactionId);
+        if (this.responseCheckPaymentStatus.error) {
 
-        // -- check if payment is cancelled
+          var code = this.responseCheckPaymentStatus.error.errors[0].code.toString();
+          var description = this.responseCheckPaymentStatus.error.errors[0].message;
+
+          winston.error("RunningTransaction[%d]::requestCheckPaymentStatus-%d:", this.instance, paymentChecks, this.response.transactionId, code, description);
+
+          var rtn = await this.opc.writeAsync(this.instance_config.errorCode, code);
+          var rtn = await this.opc.writeAsync(this.instance_config.errorDescription, description);
+          var rtn = await this.opc.writeAsync(this.instance_config.cancelBit, true);
+
+          var rtn = await this.requestCancelPayment(this.response.transactionId);
+
+          break;
+        }
+
+        winston.info("RunningTransaction[%d]::requestCheckPaymentStatus-%d:", this.instance, paymentChecks, this.response.transactionId);
+
         this.cancelBit = await this.opc.readAsync(this.instance_config.cancelBit);
 
-        if (gDB) gDB.collection("transaction").updateOne(myquery, {
-          $set: {
-            responseCheckPaymentStatus: this.responseCheckPaymentStatus,
-            dt_update: Date()
-          }
-        })
+        // -- check if payment is cancelled
+        if (paymentChecks >= 30 && this.cancelBit === true) {
+          await this.requestCancelPayment(this.response.transactionId);
+        }
 
         // if payment is signed or canceled break the while
-        if (this.responseCheckPaymentStatus.signed === true || this.cancelBit === true) {
-      
+        if (this.responseCheckPaymentStatus.signed === true) {
           break;
         }
 
@@ -217,6 +279,8 @@ class RunningTransaction {
       // ---------- SIGNED TRANSACTION
       if (this.responseCheckPaymentStatus.signed === true) {
 
+        winston.info("RunningTransaction[%d]::requestCheckPaymentStatus-%d SIGNED:", this.instance, paymentChecks, this.response.transactionId);
+        
         // update plc, transaction is signed
         var paymentToOPC = await this.opc.writeAsync(this.instance_config.transactionSigned, true);
         if (paymentToOPC === false) {
@@ -226,8 +290,7 @@ class RunningTransaction {
             dt_create: Date()
           });
         }
-        else
-        {
+        else {
           winston.info("RunningTransaction::transactionSigned written.");
         }
       }
@@ -245,7 +308,7 @@ class RunningTransaction {
 
       const url = this.apiLocation + 'api/internetpayments/';
       // --- request transaction
-      winston.debug('RunningTransaction::requestPayment', url,  JSON.stringify(this.paymentData));
+      winston.debug('RunningTransaction::requestPayment', url, JSON.stringify(this.paymentData));
 
       request({
         url: url,
@@ -257,12 +320,12 @@ class RunningTransaction {
         body: paymentdata
       })
         .then(function (data) {
-          winston.debug('RunningTransaction::requestPayment', JSON.stringify(data));
+          winston.debug('RunningTransaction::requestPayment OK', JSON.stringify(data));
           resolve(data);
         })
-        .catch(function (error) {
-          winston.error('RunningTransaction::::requestPayment', error.message);
-          throw error;
+        .catch(function (data) {
+          winston.error('RunningTransaction::requestPayment NOK', data.statusCode);
+          resolve(data);
         });
     });
   }
@@ -281,15 +344,46 @@ class RunningTransaction {
         }
       })
         .then(function (data) {
-          winston.debug('RunningTransaction::::requestCheckPaymentStatus', JSON.stringify(data));
+          winston.debug('RunningTransaction::requestCheckPaymentStatus OK', JSON.stringify(data));
           resolve(data);
         })
         .catch(function (error) {
-          winston.error('RunningTransaction::::requestCheckPaymentStatus', error.message);
+          winston.error('RunningTransaction::requestCheckPaymentStatus NOK', error.statusCode);
           resolve(error);
         });
     });
   }
+
+  //requestCancelPayment
+
+  async requestCancelPayment(transactionId) {
+    return new Promise((resolve, reject) => {
+
+      var url = this.apiLocation + 'api/internetpayments/' + transactionId;
+
+      request({
+        url: url,
+        method: "DELETE",
+        json: true,
+        headers: {
+          "content-type": "application/json",
+        },
+        body: {
+          apiKey: this.apiKey,
+          profileID: this.profileID,
+        }
+      })
+        .then(function (data) {
+          winston.info('RunningTransaction::requestCancelPayment OK', url, JSON.stringify(data));
+          resolve(data);
+        })
+        .catch(function (error) {
+          winston.error('RunningTransaction::requestCancelPayment NOK', error.statusCode);
+          resolve(error);
+        });
+    });
+  }
+
 
   get paymentData() {
     return {
@@ -334,9 +428,10 @@ class Heartbeat {
 
       this.heartbeat = !this.heartbeat;
 
-      await this.opc.writeAsync(global_config.sharedio.heartbeat, this.heartbeat);
+      var rtn = await this.opc.writeAsync(global_config.sharedio.heartbeat, this.heartbeat);
+      winston.debug("Heartbeat loop.", rtn);
 
-      await this.delay(3000);
+      await this.delay(1000);
 
     } while (true);
   }

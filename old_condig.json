@@ -1,0 +1,24 @@
+{
+    "opcserver": "opc.tcp://192.168.0.50:4840",
+    "cashfreeConfig": {
+        "apiKey": "f6197f4c-8813-4af3-b615-f845f1e3477a",
+        "profileID": "a3aefe40-9a1a-4f9f-8e38-4c9ab6416ef1",
+        "apiLocation": "https://icapps-nodejs-cashfree-api-sta.herokuapp.com/"
+    },
+    "ios": [
+        {
+            "paymentBusy": false,
+            "Startbit": "ns=3;s=\"Communicatie Cashfree\".\"Startbit\"",
+            "Cancelbit": "ns=3;s=\"Communicatie Cashfree\".\"Cancelbit\"",
+            "paymentURL": "ns=3;s=\"Communicatie Cashfree\".\"paymentURL\"",
+            "transactionSigned": "ns=3;s=\"Communicatie Cashfree\".\"transactionSigned\"",
+            "transactionID": "ns=3;s=\"Communicatie Cashfree\".\"transactionID\"",
+            "transactionAmount": "ns=3;s=\"Communicatie Cashfree\".\"transactionAmount\"",
+            "transactionDescription": "ns=3;s=\"Communicatie Cashfree\".\"transactionDescription\"",
+            "cashfreeConfig_apiKey": "ns=3;s=\"Communicatie Cashfree\".\"cashfreeConfig_apiKey\"",
+            "cashfreeConfig_profileID": "ns=3;s=\"Communicatie Cashfree\".\"cashfreeConfig_profileID\"",
+            "cashfreeConfig_apiLocation": "ns=3;s=\"Communicatie Cashfree\".\"cashfreeConfig_apiLocation\"",
+            "Heartbeat": "ns=3;s=\"Communicatie Cashfree\".\"Heartbeat\""
+        }
+    ]
+}
