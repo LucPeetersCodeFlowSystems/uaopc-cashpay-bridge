@@ -14,6 +14,13 @@ server.buildInfo.productName = "MySampleServer1";
 server.buildInfo.buildNumber = "7658";
 server.buildInfo.buildDate = new Date(2015, 12, 25);
 
+    /// ----- configuration
+    var cashfreeConfig = {
+        "apiKey": "e310d439-a583-4444-939c-5f5e4a1a458b",
+        "profileID": "32ef8dda-3c91-4a66-a631-cbb5d4d976b7",
+        "apiLocation": "https://icapps-nodejs-cashfree-api-pre.herokuapp.com/",
+    }
+
 
 // the server needs to be initialized first. During initialisation,
 // the server will construct its default namespace.
@@ -204,12 +211,46 @@ function construct_my_address_space(server) {
         }
     });
 
-    /// ----- configuration
-    var cashfreeConfig = {
-        "apiKey": "e310d439-a583-4444-939c-5f5e4a1a458b",
-        "profileID": "32ef8dda-3c91-4a66-a631-cbb5d4d976b7",
-        "apiLocation": "https://icapps-nodejs-cashfree-api-pre.herokuapp.com/",
-    }
+    var errorCode = "";
+    server.errorCode = addressSpace.addVariable({
+        componentOf: myDevice,
+        nodeId: "ns=1;s=errorCode",
+        browseName: "errorCode",
+        dataType: "String",
+        value: {
+            get: function () {
+                return new opcua.Variant({ dataType: opcua.DataType.String, value: errorCode });
+            },
+            set: function (variant) {
+                errorCode = variant.value;
+                return opcua.StatusCodes.Good;
+            }
+        }
+    });
+
+    var errorDescription = "";
+    server.errorDescription = addressSpace.addVariable({
+        componentOf: myDevice,
+        nodeId: "ns=1;s=errorDescription",
+        browseName: "errorDescription",
+        dataType: "String",
+        value: {
+            get: function () {
+                return new opcua.Variant({ dataType: opcua.DataType.String, value: errorDescription });
+            },
+            set: function (variant) {
+                errorDescription = variant.value;
+                return opcua.StatusCodes.Good;
+            }
+        }
+    });
+
+    /*
+            "errorCode": "ns=1;s=errorCode",
+            "errorDescription": "ns=1;s=errorDescription" 
+    */
+
+
 
     server.cashfreeConfig_apiKey = addressSpace.addVariable({
         componentOf: myDevice,

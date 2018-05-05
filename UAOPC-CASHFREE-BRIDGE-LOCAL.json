@@ -25,7 +25,9 @@
             "transactionpoll": "ns=1;s=transactionPollCounter", 
             "paymentURL": "ns=1;s=paymentURL", 
             "transactionID": "ns=1;s=transactionID", 
-            "transactionSigned": "ns=1;s=transactionSigned" 
+            "transactionSigned": "ns=1;s=transactionSigned",
+            "errorCode": "ns=1;s=errorCode",
+            "errorDescription": "ns=1;s=errorDescription" 
         },
         {
             "cancelBit": "ns=2;s=cancelBit", 
@@ -37,7 +39,9 @@
             "transactionpoll": "ns=2;s=transactionPollCounter", 
             "paymentURL": "ns=2;s=paymentURL", 
             "transactionID": "ns=2;s=transactionID", 
-            "transactionSigned": "ns=2;s=transactionSigned" 
+            "transactionSigned": "ns=2;s=transactionSigned",
+            "errorCode": "ns=1;s=errorCode",
+            "errorDescription": "ns=1;s=errorDescription"
         }
     ]
 }
